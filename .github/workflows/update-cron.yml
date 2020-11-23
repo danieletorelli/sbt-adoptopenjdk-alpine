@@ -41,6 +41,7 @@ jobs:
           email: 'danieletorelli@users.noreply.github.com'
       - id: head
         name: Head commit hash
+        if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
         run: |
           echo "::set-output name=commit_hash::$(git log --format='%H' -n 1)"
       - name: Release
