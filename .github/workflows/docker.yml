@@ -1,0 +1,102 @@
+name: Docker
+
+on:
+  schedule:
+    - cron: '* 7 * * *'
+  push:
+    branches:
+      - '*'
+  pull_request:
+
+env:
+  IMAGE_NAME: sbt-alpine
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      latest: ${{ steps.latest.outputs.version }}
+    steps:
+      - id: latest
+        name: Check latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/sbt/sbt/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
+          echo "Latest: $LATEST"
+          echo "::set-output name=version::$(echo $LATEST)"
+
+  full:
+    needs: check
+    env:
+      VERSION: ${{ needs.check.outputs.latest }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build full image
+        run: docker build . -f full/Dockerfile -t $IMAGE_NAME --build-arg SBT_VERSION=$VERSION
+      - name: Log into registry
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login docker.io -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+      - name: Push full image
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          VERSION=${VERSION}-full
+          echo VERSION=$VERSION
+
+          push () {
+            IMAGE_ID=$1
+
+            # Change all uppercase to lowercase
+            IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+            echo IMAGE_ID=$IMAGE_ID
+
+            docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+            docker tag $IMAGE_NAME $IMAGE_ID:full
+
+            docker push $IMAGE_ID:$VERSION
+            docker push $IMAGE_ID:full
+          }
+
+          push "docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME"
+          push "docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME"
+
+  slim:
+    needs: check
+    env:
+      VERSION: ${{ needs.check.outputs.latest }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build slim image
+        run: docker build . -f slim/Dockerfile -t $IMAGE_NAME --build-arg SBT_VERSION=$VERSION
+      - name: Log into registry
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login docker.io -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+      - name: Push slim image
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          VERSION=${VERSION}-slim
+          echo VERSION=$VERSION
+
+          push () {
+            IMAGE_ID=$1
+
+            # Change all uppercase to lowercase
+            IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+            echo IMAGE_ID=$IMAGE_ID
+
+            docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+            docker tag $IMAGE_NAME $IMAGE_ID:slim
+            docker tag $IMAGE_NAME $IMAGE_ID:latest
+
+            docker push $IMAGE_ID:$VERSION
+            docker push $IMAGE_ID:slim
+            docker push $IMAGE_ID:latest
+          }
+
+          push "docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME"
+          push "docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME"
+
