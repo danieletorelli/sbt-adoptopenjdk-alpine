@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@master
       - name: Build full image
         run: docker build . --file Dockerfile.full --tag $IMAGE_NAME
       - name: Log into registry
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@master
       - name: Build slim image
         run: docker build . --file Dockerfile.slim --tag $IMAGE_NAME
       - name: Log into registry
