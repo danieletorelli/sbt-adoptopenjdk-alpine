@@ -2,53 +2,56 @@ name: Update
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 */12 * * *'
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - id: latest
-        name: Check latest version
+      - id: versions
+        name: Check versions
         run: |
           LATEST=$(curl -s https://api.github.com/repos/sbt/sbt/releases/latest | jq .tag_name)
 
           # Strip "v" prefix from tag name
           LATEST=$(echo $LATEST | sed -e 's/"//g' | sed -e 's/^v//')
 
-          echo "Latest: $LATEST"
-          echo "::set-output name=version::$(echo $LATEST)"
-      - id: current
-        name: Check current version
-        run: |
           CURRENT=$(cat Dockerfile.slim | grep "ARG SBT_VERSION" | sed -e 's/^.*=\(.*\)$/\1/')
 
+          echo "Latest: $LATEST"
           echo "Current: $CURRENT"
-          echo "::set-output name=version::$(echo $CURRENT)"
+          echo "::set-output name=latest::$(echo $LATEST)"
+          echo "::set-output name=current::$(echo $CURRENT)" 
       - name: Update
-        if: ${{ steps.latest.outputs.version != steps.current.outputs.version }}
+        if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
         run: |
-          sed -i 's/${{ steps.current.outputs.version }}/${{ steps.latest.outputs.version }}/g' Dockerfile.slim
-          sed -i 's/${{ steps.current.outputs.version }}/${{ steps.latest.outputs.version }}/g' Dockerfile.full
+          sed -i 's/${{ steps.versions.outputs.current }}/${{ steps.versions.outputs.latest }}/g' Dockerfile.slim
+          sed -i 's/${{ steps.versions.outputs.current }}/${{ steps.versions.outputs.latest }}/g' Dockerfile.full
       - name: Push
-        if: ${{ steps.latest.outputs.version != steps.current.outputs.version }}
+        if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
         uses: github-actions-x/commit@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           push-branch: 'master'
-          commit-message: 'Chore: Update SBT to ${{ steps.latest.outputs.version }}'
+          commit-message: 'Chore: Update SBT to ${{ steps.versions.outputs.latest }}'
           force-add: 'true'
           files: Dockerfile.slim Dockerfile.full
           name: 'Github Actions'
           email: 'danieletorelli@users.noreply.github.com'
+      - id: head
+        name: Head commit hash
+        run: |
+          echo "::set-output name=commit_hash::$(git log --format='%H' -n 1)"
       - name: Release
-        if: ${{ steps.latest.outputs.version != steps.current.outputs.version }}
+        if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
         uses: actions/create-release@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.latest.outputs.version }}
-          release_name: ${{ steps.latest.outputs.version }}
+          tag_name: ${{ steps.versions.outputs.latest }}
+          release_name: ${{ steps.versions.outputs.latest }}
+          commitish: ${{ steps.head.outputs.commit_hash }}
           draft: false
           prerelease: false
+
