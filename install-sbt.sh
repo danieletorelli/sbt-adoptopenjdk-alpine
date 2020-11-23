@@ -5,7 +5,7 @@ set -euo pipefail
 SOURCE_DIR="/tmp/sbt"
 TARGET_DIR="/usr/share/sbt"
 CONFIG_DIR="/etc/sbt"
-BUILD_DIR="/var/build"
+BUILD_DIR="/var/workspace"
 SBT_VERSION="$1"
 
 echo "Installing SBT v${SBT_VERSION}"
