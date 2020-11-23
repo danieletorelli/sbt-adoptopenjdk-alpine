@@ -14,15 +14,18 @@ env:
 jobs:
   push-full:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@master
       - name: Build full image
         run: docker build . --file Dockerfile.full --tag $IMAGE_NAME
       - name: Log into registry
+        if: github.event_name == 'push'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
       - name: Push full image
+        if: github.event_name == 'push'
         run: |
+          set -x
+
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
           # Change all uppercase to lowercase
@@ -34,8 +37,7 @@ jobs:
           # Strip "v" prefix from tag name
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
 
-          [ "$VERSION" == "master" ] && VERSION=full
-          [ "$VERSION" != "full" ] && VERSION="${VERSION}"-full
+          [ "$VERSION" == "master" ] && VERSION=full || VERSION=${VERSION}-full
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
@@ -43,18 +45,23 @@ jobs:
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
 
+          [ "$VERSION" != "full" ] && docker tag $IMAGE_NAME $IMAGE_ID:full && docker push $IMAGE_ID:full
+
   push-slim:
-    needs: push-full
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    needs: push-full
     steps:
       - uses: actions/checkout@master
       - name: Build slim image
         run: docker build . --file Dockerfile.slim --tag $IMAGE_NAME
       - name: Log into registry
+        if: github.event_name == 'push'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
       - name: Push slim image
+        if: github.event_name == 'push'
         run: |
+          set -x
+
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
           # Change all uppercase to lowercase
@@ -66,8 +73,7 @@ jobs:
           # Strip "v" prefix from tag name
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
 
-          [ "$VERSION" == "master" ] && VERSION=slim
-          [ "$VERSION" != "slim" ] && VERSION="${VERSION}"-slim
+          [ "$VERSION" == "master" ] && VERSION=slim || VERSION=${VERSION}-slim
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
@@ -75,5 +81,8 @@ jobs:
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
 
+          [ "$VERSION" != "slim" ] && docker tag $IMAGE_NAME $IMAGE_ID:slim && docker push $IMAGE_ID:slim
+
           # Use Docker `latest` tag convention
-          [ "$VERSION" == "slim" ] && docker tag $IMAGE_NAME $IMAGE_ID:latest && docker push $IMAGE_ID:latest
+          docker tag $IMAGE_NAME $IMAGE_ID:latest && docker push $IMAGE_ID:latest
+
