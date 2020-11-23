@@ -9,7 +9,7 @@ on:
   pull_request:
 
 env:
-  IMAGE_NAME: sbt-adoptopenjdk-alpine
+  IMAGE_NAME: sbt-alpine
 
 jobs:
   push-full:
