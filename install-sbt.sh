@@ -8,7 +8,9 @@ CONFIG_DIR="/etc/sbt"
 BUILD_DIR="/var/workspace"
 SBT_VERSION="$1"
 
-echo "Installing SBT v${SBT_VERSION}"
+[[ $SBT_VERSION == "latest" ]] && SBT_VERSION=$(curl -s https://api.github.com/repos/sbt/sbt/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
+
+echo "Installing SBT ${SBT_VERSION}"
 curl -L -o /tmp/sbt-$SBT_VERSION.tgz https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz
 tar -C /tmp -xvzf /tmp/sbt-${SBT_VERSION}.tgz
 rm -f ${SOURCE_DIR}/bin/sbt.bat

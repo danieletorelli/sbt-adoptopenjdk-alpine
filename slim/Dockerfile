@@ -4,10 +4,10 @@ COPY install-sbt.sh /tmp
 
 WORKDIR /var/workspace
 
-ARG SBT_VERSION=1.4.3
+ARG SBT_VERSION=latest
 
 RUN \
-  apk add --no-cache --virtual .deps curl && \
+  apk add --no-cache --virtual .deps curl jq && \
   apk add --no-cache bash && \
   /tmp/install-sbt.sh ${SBT_VERSION} && \
   rm -f /tmp/install-sbt.sh && \
