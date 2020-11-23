@@ -8,7 +8,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - id: versions
         name: Check versions
         run: |
@@ -30,7 +30,7 @@ jobs:
           sed -i 's/${{ steps.versions.outputs.current }}/${{ steps.versions.outputs.latest }}/g' Dockerfile.full
       - name: Push
         if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
-        uses: github-actions-x/commit@master
+        uses: github-actions-x/commit@v2.7
         with:
           github-token: ${{ secrets.PAT }}
           push-branch: 'master'
@@ -46,7 +46,7 @@ jobs:
           echo "::set-output name=commit_hash::$(git log --format='%H' -n 1)"
       - name: Release
         if: ${{ steps.versions.outputs.latest != steps.versions.outputs.current }}
-        uses: actions/create-release@master
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
         with:

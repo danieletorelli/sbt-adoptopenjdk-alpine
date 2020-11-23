@@ -15,7 +15,7 @@ jobs:
   push-full:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Build full image
         run: docker build . --file Dockerfile.full --tag $IMAGE_NAME
       - name: Log into registry
@@ -24,8 +24,6 @@ jobs:
       - name: Push full image
         if: github.event_name == 'push'
         run: |
-          set -x
-
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
           # Change all uppercase to lowercase
@@ -51,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: push-full
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Build slim image
         run: docker build . --file Dockerfile.slim --tag $IMAGE_NAME
       - name: Log into registry
@@ -60,8 +58,6 @@ jobs:
       - name: Push slim image
         if: github.event_name == 'push'
         run: |
-          set -x
-
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
           # Change all uppercase to lowercase
