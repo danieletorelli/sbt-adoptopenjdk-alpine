@@ -2,7 +2,7 @@ name: Docker
 
 on:
   schedule:
-    - cron: '* 7 * * *'
+    - cron: '0 7 * * *'
   push:
     branches:
       - '*'
@@ -18,85 +18,87 @@ jobs:
       latest: ${{ steps.latest.outputs.version }}
     steps:
       - id: latest
-        name: Check latest
+        name: Fetch latest version
         run: |
           LATEST=$(curl -s https://api.github.com/repos/sbt/sbt/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
           echo "Latest: $LATEST"
           echo "::set-output name=version::$(echo $LATEST)"
 
-  full:
+  build:
     needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        alpine: [ 'alpine-slim', 'alpine' ]
+        jdk: [ '8', '11', '15' ]
+        registry: [ 'docker.pkg.github.com', 'docker.io' ]
+        include:
+          - registry: 'docker.pkg.github.com'
+            repository: ${{ github.repository }}
+            username: ${{ github.actor }}
+            token: 'GITHUB_TOKEN'
+          - registry: 'docker.io'
+            repository: 'DOCKER_HUB_USERNAME'
+            username: 'DOCKER_HUB_USERNAME'
+            token: 'DOCKER_HUB_TOKEN'
     env:
       VERSION: ${{ needs.check.outputs.latest }}
+      IMAGE_URL: "${{ matrix.registry }}/${{ secrets[matrix.repository] || matrix.repository }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Build full image
-        run: docker build . -f full/Dockerfile -t $IMAGE_NAME --build-arg SBT_VERSION=$VERSION
+      - name: Build
+        run: |
+          docker build . -t $IMAGE_NAME \
+            --build-arg JDK_VERSION=${{ matrix.jdk }} \
+            --build-arg ALPINE_VERSION=${{ matrix.alpine }} \
+            --build-arg SBT_VERSION=$VERSION
       - name: Log into registry
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login docker.io -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-      - name: Push full image
+          echo "${{ secrets[matrix.token] }}" | \
+          docker login ${{ matrix.registry }} \
+            -u ${{ secrets[matrix.username] || matrix.username }} \
+            --password-stdin
+      - name: Push
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
         run: |
-          VERSION=${VERSION}-full
-          echo VERSION=$VERSION
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_URL/$IMAGE_NAME" | tr '[A-Z]' '[a-z]')
 
-          push () {
-            IMAGE_ID=$1
+          push() {
+            local TAG=${1?}
 
-            # Change all uppercase to lowercase
-            IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
             echo IMAGE_ID=$IMAGE_ID
+            echo TAG=$TAG
 
-            docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-            docker tag $IMAGE_NAME $IMAGE_ID:full
-
-            docker push $IMAGE_ID:$VERSION
-            docker push $IMAGE_ID:full
+            docker tag $IMAGE_NAME $IMAGE_ID:$TAG
+            docker push $IMAGE_ID:$TAG
           }
 
-          push "docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME"
-          push "docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME"
+          case "${{ matrix.alpine }}" in
+            "alpine")
+              push "${{ matrix.jdk }}-${VERSION}-full"
+              push "${{ matrix.jdk }}-full"
+              ;;
+            "alpine-slim")
+              push "${{ matrix.jdk }}-${VERSION}-slim"
+              push "${{ matrix.jdk }}-slim"
+              push "${{ matrix.jdk }}"
+              ;;
+            *)
+              echo "Error: Unexpected alpine version: ${{ matrix.alpine }}" >&2
+              exit 1
+              ;;
+          esac
 
-  slim:
-    needs: check
-    env:
-      VERSION: ${{ needs.check.outputs.latest }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build slim image
-        run: docker build . -f slim/Dockerfile -t $IMAGE_NAME --build-arg SBT_VERSION=$VERSION
-      - name: Log into registry
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login docker.io -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-      - name: Push slim image
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
-        run: |
-          VERSION=${VERSION}-slim
-          echo VERSION=$VERSION
-
-          push () {
-            IMAGE_ID=$1
-
-            # Change all uppercase to lowercase
-            IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-            echo IMAGE_ID=$IMAGE_ID
-
-            docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-            docker tag $IMAGE_NAME $IMAGE_ID:slim
-            docker tag $IMAGE_NAME $IMAGE_ID:latest
-
-            docker push $IMAGE_ID:$VERSION
-            docker push $IMAGE_ID:slim
-            docker push $IMAGE_ID:latest
-          }
-
-          push "docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME"
-          push "docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME"
+          case "${{ matrix.jdk }},${{ matrix.alpine }}" in
+            "8,alpine")
+              push "full"
+              ;;
+            "8,alpine-slim")
+              push "slim"
+              push "latest"
+              ;;
+          esac
 
