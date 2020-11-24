@@ -1,10 +1,15 @@
-FROM adoptopenjdk/openjdk8:alpine-slim
+ARG JDK_VERSION=8
+ARG ALPINE_VERSION=alpine-slim
+
+FROM adoptopenjdk/openjdk${JDK_VERSION}:${ALPINE_VERSION}
+
+LABEL maintainer="Daniele Torelli"
+
+ARG SBT_VERSION=latest
 
 COPY install-sbt.sh /tmp
 
 WORKDIR /var/workspace
-
-ARG SBT_VERSION=latest
 
 RUN \
   apk add --no-cache --virtual .deps curl jq && \
