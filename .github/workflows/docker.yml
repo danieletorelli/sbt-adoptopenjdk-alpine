@@ -94,9 +94,11 @@ jobs:
 
           case "${{ matrix.jdk }},${{ matrix.alpine }}" in
             "8,alpine")
+              push "${VERSION}-full"
               push "full"
               ;;
             "8,alpine-slim")
+              push "${VERSION}-slim"
               push "slim"
               push "latest"
               ;;
