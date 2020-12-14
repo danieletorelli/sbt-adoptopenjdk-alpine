@@ -3,7 +3,7 @@
 sbt-alpine
 ==========
 
-This is for running SBT in Docker using [AdoptOpenJDK 8](https://hub.docker.com/r/adoptopenjdk/openjdk8) alpine base images.
+This is for running SBT in Docker using [AdoptOpenJDK](https://hub.docker.com/r/adoptopenjdk) alpine base images.
 
 Usage
 -----
