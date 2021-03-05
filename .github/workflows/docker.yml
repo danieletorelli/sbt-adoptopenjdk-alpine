@@ -21,6 +21,7 @@ jobs:
         name: Fetch latest version
         run: |
           LATEST=$(curl -s https://api.github.com/repos/sbt/sbt/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
+          curl -s --show-error --fail -o /dev/null -I https://github.com/sbt/sbt/releases/download/v${LATEST}/sbt-${LATEST}.tgz
           echo "Latest: $LATEST"
           echo "::set-output name=version::$(echo $LATEST)"
 
