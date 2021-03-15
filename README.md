@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/danieletorelli/sbt-alpine/workflows/Docker/badge.svg?branch=master)](https://github.com/danieletorelli/sbt-alpine/actions?query=workflow%3A%22Docker%22+branch%3Amaster)
+[![build](https://img.shields.io/github/workflow/status/danieletorelli/sbt-alpine/Docker/master?style=for-the-badge)](https://github.com/danieletorelli/sbt-alpine/actions?query=workflow%3A%22Docker%22+branch%3Amaster)
 
 sbt-alpine
 ==========
